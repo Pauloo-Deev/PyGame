@@ -116,7 +116,7 @@ O jogador vence ao:
 
 ## 📸 Demonstração
 
-_(adicione aqui prints do jogo, se desejar)_
+![alt text](image.png)
 
 ---
 
