@@ -112,7 +112,15 @@ class Player:
                     sounds.coin.play()
 
         for enemy in enemies:
-            enemy_rect = Rect(enemy.x, enemy.y, enemy.width, enemy.height)
+            hit_margin_x = max(12, int(enemy.width * 0.42))
+            hit_margin_y = max(12, int(enemy.height * 0.42))
+            enemy_rect = Rect(
+                enemy.x + hit_margin_x,
+                enemy.y + hit_margin_y,
+                enemy.width - hit_margin_x * 2,
+                enemy.height - hit_margin_y * 2,
+            )
+
             if player_rect.colliderect(enemy_rect):
                 self.alive = False
                 if sounds_on:
