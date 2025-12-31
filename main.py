@@ -5,8 +5,7 @@ import pgzrun
 import math
 from pygame import Rect
 
-mouse_x = 0
-mouse_y = 0
+mouse_x = mouse_y = 0
 
 WIDTH = 800
 HEIGHT = 600
@@ -15,11 +14,20 @@ FPS = 60
 
 GAME_STATES = {"MENU": 0, "PLAYING": 1, "GAME_OVER": 2, "WIN": 3}
 
-current_state = GAME_STATES["MENU"]
-music_on = True
-sounds_on = True
-score = 0
+current_state, music_on, sounds_on, score, ui_tick = GAME_STATES["MENU"], True, True, 0, 0
 
+def draw_platforms(platforms):
+    gt, cl, cm, cr = images.terrain_grass_block_top, images.terrain_grass_cloud_left, images.terrain_grass_cloud_middle, images.terrain_grass_cloud_right
+    gw, cw = gt.get_width(), cm.get_width()
+    for x,y,w,h in platforms:
+        is_ground = (x==0 and y==HEIGHT-50 and w==WIDTH and h==50)
+        if is_ground:
+            for tx in range(x, x+w, gw): screen.blit(gt,(tx,y))
+        else:
+            t = max(1, math.ceil(w/cw))
+            screen.blit(cl,(x,y))
+            for i in range(1, t-1): screen.blit(cm,(x+i*cw,y))
+            if t>1: screen.blit(cr,(x+(t-1)*cw,y))
 
 class Player:
     def __init__(self):
@@ -235,8 +243,10 @@ class Coin:
         return Rect(self.x, self.y, self.width, self.height)
 
     def draw(self):
-        if not self.collected:
-            screen.blit(images.coin_gold, (self.x, self.y))
+        if self.collected:
+            return
+        bob = int(3 * math.sin((ui_tick + self.x) / 10))
+        screen.blit(images.coin_gold, (self.x, self.y + bob))
 
 
 class Flag:
@@ -332,82 +342,88 @@ buttons = [
 
 
 def update():
-    global current_state, music_on, sounds_on
+    global current_state, music_on, sounds_on, ui_tick
+    ui_tick += 1
 
     if current_state == GAME_STATES["PLAYING"]:
         player.update(platforms, enemies)
-        for enemy in enemies:
-            enemy.update()
+        [e.update() for e in enemies]
         flag.update()
 
-    if music_on:
-        if not music.is_playing("background"):
-            music.play("background")
-    else:
-        music.stop()
+    music.play("background") if music_on and not music.is_playing("background") else music.stop() if not music_on else None
 
 
 def draw():
-    screen.clear()
-    screen.fill((135, 206, 235))
-
-    if current_state == GAME_STATES["MENU"]:
-        draw_menu()
-    elif current_state == GAME_STATES["PLAYING"]:
-        draw_game()
-    elif current_state == GAME_STATES["GAME_OVER"]:
-        draw_game_over()
-    elif current_state == GAME_STATES["WIN"]:
-        draw_win()
-
+    screen.clear(); screen.fill((135,206,235))
+    {GAME_STATES["MENU"]: draw_menu, GAME_STATES["PLAYING"]: draw_game,
+     GAME_STATES["GAME_OVER"]: draw_game_over, GAME_STATES["WIN"]: draw_win}[current_state]()
 
 def draw_menu():
-    screen.draw.text("PLATFORMER ADVENTURE", center=(WIDTH // 2, 100), fontsize=60, color="white")
+    screen.fill((135, 206, 235))
+    draw_platforms([[0, HEIGHT-50, WIDTH, 50]])
+    draw_platforms([[160,185,480,20],[220,455,360,20]])
+
+    title_y = 95
+    screen.draw.text(
+        "PLATFORMER ADVENTURE",
+        center=(WIDTH // 2 + 2, title_y + 2),
+        fontsize=60,
+        color=(20, 60, 90),
+    )
+    screen.draw.text(
+        "PLATFORMER ADVENTURE",
+        center=(WIDTH // 2, title_y),
+        fontsize=60,
+        color="white",
+    )
+
+    bob = int(3 * math.sin(ui_tick / 10))
+
+    menu_plat_x = 160
+    menu_plat_y = 185
+    menu_plat_w = 480
+
+    coin_img = images.coin_gold
+    coin_x = menu_plat_x + 70
+    coin_y = menu_plat_y - coin_img.get_height()
+    screen.blit(coin_img, (coin_x, coin_y + bob))
+
+    flag_frame = "flag_green_a" if (ui_tick // 12) % 2 == 0 else "flag_green_b"
+    flag_img = getattr(images, flag_frame)
+    flag_x = menu_plat_x + menu_plat_w - flag_img.get_width() - 70
+    flag_y = menu_plat_y - flag_img.get_height()
+    screen.blit(flag_img, (flag_x, flag_y))
 
     for btn in buttons:
-        color = "green" if mouse_pos_over_button(btn) else "blue"
-        screen.draw.filled_rect(Rect(btn.x, btn.y, btn.width, btn.height), color)
-        screen.draw.text(btn.text, center=(btn.x + btn.width // 2, btn.y + btn.height // 2), fontsize=30, color="white")
+        hovered = mouse_pos_over_button(btn)
+        lift = -2 if hovered else 0
+        bx = btn.x
+        by = btn.y + lift + 25
 
-    screen.draw.text("Use ARROWS to move, UP to jump", center=(WIDTH // 2, 500), fontsize=25, color="white")
+        bg = (40, 120, 200) if not hovered else (60, 170, 90)
+        border = (20, 50, 90)
+
+        screen.draw.filled_rect(Rect(bx, by, btn.width, btn.height), bg)
+        screen.draw.rect(Rect(bx, by, btn.width, btn.height), border)
+
+        screen.draw.text(
+            btn.text,
+            center=(bx + btn.width // 2, by + btn.height // 2),
+            fontsize=30,
+            color="white",
+        )
+
+    screen.draw.text(
+        "Use ←/→ to move, ↑ to jump",
+        center=(WIDTH // 2, 565),
+        fontsize=26,
+        color="white",
+    )
 
 
 def draw_game():
-    ground_tile = images.terrain_grass_block_top
-    cloud_left = images.terrain_grass_cloud_left
-    cloud_mid = images.terrain_grass_cloud_middle
-    cloud_right = images.terrain_grass_cloud_right
-
-    ground_w = ground_tile.get_width()
-    cloud_w = cloud_mid.get_width()
-
-    for x, y, w, h in platforms:
-        is_ground = (x == 0 and y == HEIGHT - 50 and w == WIDTH and h == 50)
-
-        if is_ground:
-            for tx in range(x, x + w, ground_w):
-                screen.blit(ground_tile, (tx, y))
-        else:
-            tiles_count = max(1, math.ceil(w / cloud_w))
-            if tiles_count == 1:
-                screen.blit(cloud_mid, (x, y))
-            elif tiles_count == 2:
-                screen.blit(cloud_left, (x, y))
-                screen.blit(cloud_right, (x + cloud_w, y))
-            else:
-                screen.blit(cloud_left, (x, y))
-                for i in range(1, tiles_count - 1):
-                    screen.blit(cloud_mid, (x + i * cloud_w, y))
-                screen.blit(cloud_right, (x + (tiles_count - 1) * cloud_w, y))
-
-    for coin in coins:
-        coin.draw()
-
-    flag.draw()
-    player.draw()
-
-    for enemy in enemies:
-        enemy.draw()
+    draw_platforms(platforms)
+    [c.draw() for c in coins]; flag.draw(); player.draw(); [e.draw() for e in enemies]
 
     if player.alive:
         screen.draw.text("ALIVE", (10, 10), fontsize=30, color="green")
@@ -432,8 +448,7 @@ def on_mouse_down(pos):
         for btn in buttons:
             if mouse_pos_over_button(btn):
                 if btn.action == "start":
-                    reset_game()
-                    current_state = GAME_STATES["PLAYING"]
+                    reset_game(); current_state = GAME_STATES["PLAYING"]
                 elif btn.action == "toggle_music":
                     music_on = not music_on
                     btn.text = f"MUSIC: {'ON' if music_on else 'OFF'}"
@@ -444,16 +459,12 @@ def on_mouse_down(pos):
                     btn.text = f"SOUNDS: {'ON' if sounds_on else 'OFF'}"
                 elif btn.action == "quit":
                     quit()
-    elif current_state in (GAME_STATES["GAME_OVER"], GAME_STATES["WIN"]):
-        reset_game()
-        current_state = GAME_STATES["MENU"]
+    elif current_state in (GAME_STATES["GAME_OVER"], GAME_STATES["WIN"]): reset_game(); current_state = GAME_STATES["MENU"]
 
 
 def on_key_down(key):
     global current_state
-    if current_state == GAME_STATES["GAME_OVER"] and key == keys.R:
-        reset_game()
-        current_state = GAME_STATES["MENU"]
+    if current_state == GAME_STATES["GAME_OVER"] and key == keys.R: reset_game(); current_state = GAME_STATES["MENU"]
 
 
 def mouse_pos_over_button(button):
@@ -470,11 +481,7 @@ def on_mouse_move(pos):
 
 def reset_game():
     global player, enemies, coins, score, flag
-    player = Player()
-    enemies = make_enemies()
-    coins = make_coins()
-    flag = make_flag()
-    score = 0
+    player, enemies, coins, flag, score = Player(), make_enemies(), make_coins(), make_flag(), 0
     buttons[1].text = f"MUSIC: {'ON' if music_on else 'OFF'}"
     buttons[2].text = f"SOUNDS: {'ON' if sounds_on else 'OFF'}"
 
