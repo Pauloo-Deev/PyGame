@@ -30,7 +30,7 @@ class Player:
         self.y = (HEIGHT - 50) - self.height
         self.vel_y = 0
         self.speed = 5
-        self.jump_power = 15
+        self.jump_power = 17
         self.is_jumping = False
         self.facing_right = True
         self.frame = 0
@@ -62,9 +62,14 @@ class Player:
         self.y += self.vel_y
 
         player_rect = Rect(self.x, self.y, self.width, self.height)
+
         foot_margin = max(4, self.width // 4)
         foot_w = max(1, self.width - foot_margin * 2)
         foot_rect = Rect(self.x + foot_margin, self.y + self.height - 5, foot_w, 5)
+
+        head_margin = max(6, self.width // 3)
+        head_w = max(1, self.width - head_margin * 2)
+        head_rect = Rect(self.x + head_margin, self.y, head_w, 6)
 
         for x, y, w, h in platforms:
             is_ground = (x == 0 and y == HEIGHT - 50 and w == WIDTH and h == 50)
@@ -84,6 +89,16 @@ class Player:
                 self.is_jumping = False
                 player_rect = Rect(self.x, self.y, self.width, self.height)
                 foot_rect = Rect(self.x + foot_margin, self.y + self.height - 5, foot_w, 5)
+                head_rect = Rect(self.x + head_margin, self.y, head_w, 6)
+
+            if head_rect.colliderect(plat_rect) and self.vel_y < 0:
+                self.y = y + h
+                self.vel_y = 0
+                player_rect = Rect(self.x, self.y, self.width, self.height)
+                foot_rect = Rect(self.x + foot_margin, self.y + self.height - 5, foot_w, 5)
+                head_rect = Rect(self.x + head_margin, self.y, head_w, 6)
+
+        head_rect = Rect(self.x + head_margin, self.y, head_w, 6)
 
         if keyboard.up and not self.is_jumping:
             self.vel_y = -self.jump_power
