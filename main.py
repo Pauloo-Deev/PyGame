@@ -150,8 +150,15 @@ class Player:
                     sounds.hit.play()
                 current_state = GAME_STATES["GAME_OVER"]
 
-        if score >= 2 and player_rect.colliderect(flag.rect()):
-            current_state = GAME_STATES["WIN"]
+        if score >= 2:
+            flag_rect = flag.rect()
+            if (
+                player_rect.left <= flag_rect.left
+                and player_rect.right >= flag_rect.right
+                and player_rect.top <= flag_rect.top
+                and player_rect.bottom >= flag_rect.bottom
+            ):
+                current_state = GAME_STATES["WIN"]
 
     def draw(self):
         if not self.alive:
