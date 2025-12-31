@@ -105,7 +105,15 @@ class Player:
         for coin in coins:
             if coin.collected:
                 continue
-            if player_rect.colliderect(coin.rect()):
+
+            coin_rect = coin.rect()
+
+            if (
+                player_rect.left <= coin_rect.left
+                and player_rect.right >= coin_rect.right
+                and player_rect.top <= coin_rect.top
+                and player_rect.bottom >= coin_rect.bottom
+            ):
                 coin.collected = True
                 score += 1
                 if sounds_on:
